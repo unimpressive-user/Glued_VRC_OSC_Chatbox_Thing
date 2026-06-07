@@ -4,7 +4,6 @@ shopt -s extglob
 # Options or some shit like that
 oscIP="127.0.0.1" # useful if sending to other device
 oscPORT="9000"
-rmAllAFTER="[" # removes symbol and evrything after
 # remove specific prefix from begining case and whitespace sensitive
 rmBEGIN=(
         "Songs - "
@@ -19,11 +18,13 @@ clean_media_info() {
     local media="$1"
     local tmp_var_shit
     for tmp_var_shit in "${rmBEGIN[@]}"; do
-        if [[ $media == "$tmp_var_shit"* ]]; then 
+        if [[ "$media" == "$tmp_var_shit"* ]]; then 
             media="${media#"$tmp_var_shit"}"
         fi
     done
-    media="${media%["$rmAllAFTER"]*}"
+    while [[ "$media" == *\[*\]* ]]; do
+        media="${media%%\[*\]*}${media#*\]*}"
+    done
     media="${media##+([[:space:]])}"
     media="${media%%+([[:space:]])}"
     echo "$media"
@@ -32,20 +33,20 @@ clean_media_info() {
 get_media_info() {
     local PLAYER
     local get
-    if playerctl -p "$prefPLAYER" status >/dev/null 2>&1; then # sudo kill me
+    local state
+    state="$(playerctl -p "$prefPLAYER" status)"
+    if [[ "$state" == "Paused" || "$state" == "Playing" ]]; then # sudo kill me
         PLAYER=(-p "$prefPLAYER")
     else
         PLAYER=()
     fi
-    if [[ $(playerctl "${PLAYER[@]}" status) == "Paused" ]]; then
+    if [[ "$state" == "Paused" ]]; then
         echo "Media paused"
         return
     else
         get="$(playerctl "${PLAYER[@]}" metadata --format "{{title}} - {{artist}}")"
     fi
-    if [[ "$get" !=  "Media paused" ]]; then
-        get="$(clean_media_info "$get")"
-    fi   
+    get="$(clean_media_info "$get")"
     echo "$get"
 }
 
@@ -54,8 +55,8 @@ send_osc() {
 }
 
 while true; do
-MESSAGE="$(date +%H:%M:%S)"$'\n'"$(get_media_info)"
-send_osc "$MESSAGE"
-echo "$MESSAGE"
-sleep 1.5
+    MESSAGE="$(date +%H:%M:%S)"$'\n'"$(get_media_info)"
+    send_osc "$MESSAGE"
+    echo "$MESSAGE"
+    sleep 1.5
 done
