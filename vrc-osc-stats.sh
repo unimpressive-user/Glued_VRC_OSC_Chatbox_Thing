@@ -1,51 +1,47 @@
 #!/bin/bash
-
-# deps: liblo, playerctl, bash
-
 set -euo pipefail
 
 # Options or some shit like that
 oscIP="127.0.0.1" # useful if sending to other device
 oscPORT="9000"
-
-# var init I guess it's good to have these?
-MESSAGE=""
-MEDIA_TITLE_ARTIST=""
-
-
-# big thanks to that random guy that figure this out on a random forum  
-clean_media_info() {
-    local media="$1"
-    local other_bs='['
-    local text_bs=(
+rmAllAFTER="[" # removes symbol and evrything after
+# remove specific prefix from begining case and whitespace sensitive
+rmBEGIN=(
         "Songs - "
         "Song - "
         "Music - "
         "not - "
-    )
-    local tmp_var_shit
-    for tmp_var_shit in "${text_bs[@]}"; do
+)
+prefPLAYER="firefox" # check with "playerctl --list-all", "firefox.instance_1_110", set prefered player
+
+# big thanks to that random guy that figure this out on a random forum  
+clean_media_info() {
+    local media="$1"
+    for tmp_var_shit in "${rmBEGIN[@]}"; do
         if [[ ${media} == "${tmp_var_shit}"* ]]; then 
             media="${media#"${tmp_var_shit}"}"
         fi
     done
-    media="${media%%["${other_bs}"]*}"
+    media="${media%%["${rmAllAFTER}"]*}"
     media="${media##+([[:space:]])}"
     media="${media%%+([[:space:]])}"
-    echo "$media"
+    echo "${media}"
 }
 
-
 get_media_info() {
-    PLAYERS="$(playerctl --list-all)"
-    if [[ $(playerctl status) == "Paused" ]]; then
+    if playerctl -p "$prefPLAYER" status > /dev/null; then # sudo kill me
+        PLAYER="--player="${prefPLAYER}""
+    else
+        PLAYER=""
+    fi
+    if [[ $(playerctl "${PLAYER}" status) == "Paused" ]]; then
         get="Media paused"
     else
-        get="$(playerctl metadata --format "{{title}} - {{artist}}")"
+        get="$(playerctl "${PLAYER}" metadata --format "{{title}} - {{artist}}")"
     fi
-    if [[ "$get" !=  "Media paused" ]]; then
+    if [[ "${get}" !=  "Media paused" ]]; then
         get="$(clean_media_info "${get}")"
-    fi
+    fi   
     echo "${get}"
 }
 
