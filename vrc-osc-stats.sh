@@ -11,7 +11,7 @@ rmBEGIN=(
         "Music - "
         "not - "
 )
-prefPLAYER="firefox" # check with "playerctl --list-all", "firefox.instance_1_110", set prefered player
+prefPLAYER=("firefox") # check with "playerctl --list-all", "firefox.instance_1_110", set prefered player
 
 # big thanks to that random guy that figure this out on a random forum  
 clean_media_info() {
@@ -34,9 +34,9 @@ get_media_info() {
     local PLAYER
     local get
     local state
-    state="$(playerctl -p "$prefPLAYER" status)"
+    state="$(playerctl -p "${prefPLAYER[@]}" status)"
     if [[ "$state" == "Paused" || "$state" == "Playing" ]]; then # sudo kill me
-        PLAYER=(-p "$prefPLAYER")
+        PLAYER=(-p "${prefPLAYER[@]}")
     else
         PLAYER=()
     fi
@@ -55,7 +55,7 @@ send_osc() {
 }
 
 while true; do
-    MESSAGE="$(date +%H:%M:%S)"$'\n'"$(get_media_info)"
+    MESSAGE=""$'assBashOSC\n'"$(date +%H:%M:%S)"$'\n'"$(get_media_info)"
     send_osc "$MESSAGE"
     echo "$MESSAGE"
     sleep 1.5
