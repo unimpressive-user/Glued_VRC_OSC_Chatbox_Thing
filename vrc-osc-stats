@@ -1,19 +1,51 @@
 #!/bin/bash
-set -uo pipefail
+#set -uo pipefail
 shopt -s extglob
 
 # Options or some shit like that
-oscIP="127.0.0.1" # useful if sending to other device
-oscPORT="9000"
+declare -r oscIP="127.0.0.1" # useful if sending to other device
+declare -r oscPORT="9000"
 # remove specific prefix from begining case and whitespace sensitive
-rmBEGIN=(
-        "Songs - "
-        "Song - "
-        "Music - "
-        "not - "
+declare -r rmBEGIN=(
+    "Songs - "
+    "Song - "
+    "Music - "
+    "not - "
 )
+# check with "playerctl -l", "firefox.instance_1_110", set prefered player
+declare -r prefPLAYER="firefox"
 
-prefPLAYER=("firefox") # check with "playerctl --list-all", "firefox.instance_1_110", set prefered player
+get_media_info() {
+    local PLAYER=()
+    local get
+    local state
+    
+    if [[ "$(pref_player_present)" == "true" ]]; then # sudo kill me
+        PLAYER=(-p "$prefPLAYER")
+    else
+        PLAYER=()
+    fi
+    
+    state="$(playerctl "${PLAYER[@]}" status)"
+
+    if [[ "$state" == *"Paused"* ]]; then
+        echo "Media paused"
+        return
+    fi
+    get="$(playerctl "${PLAYER[@]}" metadata --format "{{title}} - {{artist}}")"
+    get="$(clean_media_info "$get")"
+    get="$(limiter2ln "$get")"
+    echo "$get"
+}
+
+pref_player_present() {
+    local players="$(playerctl -l)"
+    if [[ $players == *$prefPLAYER* ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
 
 # big thanks to that random guy that figure this out on a random forum  
 clean_media_info() {
@@ -35,50 +67,22 @@ clean_media_info() {
     echo "$media"
 }
 
-get_media_info() {
-    local PLAYER
-    local get
-    local state
-    
-    state="$(playerctl -p "${prefPLAYER[@]}" status)"
-    
-    if [[ "$state" == "Paused" || "$state" == "Playing" ]]; then # sudo kill me
-        PLAYER=(-p "${prefPLAYER[@]}")
-    else
-        PLAYER=()
+limiter2ln() {
+    local text="$1"
+    local length=${#text}
+    local maxLength=54 #vrc 27 max per line? i guess
+    if [[ "$length" >="$maxLength" ]]; then
+        text="${text:0:maxLength-3}..." #-3 to make space for ...
     fi
-    
-    if [[ "$state" == "Paused" ]]; then
-        echo "Media paused"
-        return
-    else
-        get="$(playerctl "${PLAYER[@]}" metadata --format "{{title}} - {{artist}}")"
-    fi
-
-    get="$(clean_media_info "$get")"
-    
-    echo "$get"
+    echo "$text"
 }
 
 send_osc() {
     oscsend "$oscIP" "$oscPORT" /chatbox/input sTF "$1"
 }
 
-limiter() {
-    local text="$1"
-    local length=${#text}
-    local maxLength=27 #vrc 27 max per line
-    if [[ "$length" >="$maxLength" ]]; then
-        text="${text:0:maxLength-3}..." #27-3 to make space for ...
-    fi
-    echo "$text"
-}
-
 while true; do
-    media_info=$(get_media_info)
-    media_info=$(limiter "$media_info")
-
-    MESSAGE="$(date +%H:%M:%S)"$'\n'"$media_info"
+    MESSAGE="$(date +%H:%M:%S)"$'\n'"$(get_media_info)"
     
     send_osc "$MESSAGE"
     
