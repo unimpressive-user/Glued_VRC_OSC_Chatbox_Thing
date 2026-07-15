@@ -1,10 +1,11 @@
 #!/bin/bash
-#set -uo pipefail
+set -uo pipefail
 shopt -s extglob
 
 # Options or some shit like that
 declare -r oscIP="127.0.0.1" # useful if sending to other device
 declare -r oscPORT="9000"
+
 # remove specific prefix from begining case and whitespace sensitive
 declare -r rmBEGIN=(
     "Songs - "
@@ -38,6 +39,7 @@ get_media_info() {
     echo "$get"
 }
 
+#deadass stupid
 pref_player_present() {
     local players="$(playerctl -l)"
     if [[ $players == *$prefPLAYER* ]]; then
